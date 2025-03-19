@@ -1,26 +1,22 @@
 import OpenImageIO as oiio
 import os
-from typing import List, Tuple
+from typing import List, Tuple, Dict, Any
 from src.services.log_service import LogService
 import traceback
+from src.converters.converter_factory import ConverterFactory
 
 class ImageConverter:
+    """이미지 변환 인터페이스 클래스"""
+    
     def __init__(self):
-        self.supported_formats = {
-            'PNG': '.png',
-            'JPEG': '.jpg',
-            'TIFF': '.tif',
-            'EXR': '.exr',
-            'BMP': '.bmp',
-            'HDR': '.hdr'
-        }
         self.logger = LogService()
+        self.factory = ConverterFactory()
+        self.converter = self.factory.get_converter()
+        self.supported_formats = self.converter.supported_formats
     
     def get_supported_formats(self) -> List[str]:
         """지원되는 이미지 포맷 목록을 반환합니다."""
-        formats = list(self.supported_formats.keys())
-        self.logger.debug(f"지원되는 포맷 목록: {formats}")
-        return formats
+        return self.converter.get_supported_formats()
     
     def convert_image(self, input_path: str, output_path: str) -> Tuple[bool, str]:
         """
@@ -73,11 +69,11 @@ class ImageConverter:
                 return False, error_msg
             
             # 이미지 복사 및 변환
-            success = output_image.copy_image(input_image)
+            success, message, debug_info = self.converter.convert_image(input_image, output_image)
             
             if success:
                 self.logger.info(f"이미지 변환 완료: {output_path}")
-                return True, "이미지 변환이 완료되었습니다."
+                return True, message
             else:
                 error_msg = "이미지 변환 중 오류가 발생했습니다."
                 self.logger.error(error_msg)

@@ -11,7 +11,7 @@ def main():
     try:
         app = AppWindow()
         app.create_window()
-        app.setup_ui()
+        app._setup_ui()
         app.run()
     except Exception as e:
         logger.error(f"애플리케이션 실행 중 오류 발생: {str(e)}")
