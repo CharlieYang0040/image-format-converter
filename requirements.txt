@@ -1,0 +1,4 @@
+openimageio
+Pillow
+numpy
+tkinterdnd2
