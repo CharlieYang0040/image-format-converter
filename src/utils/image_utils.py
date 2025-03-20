@@ -43,24 +43,6 @@ class ImageFormatUtils:
             'supports_metadata': True,
             'is_hdr': True
         },
-        'BMP': {
-            'extension': '.bmp',
-            'has_alpha': False,
-            'compression': 'none',
-            'bit_depth': 8,
-            'color_space': 'sRGB',
-            'supports_metadata': False,
-            'is_hdr': False
-        },
-        'HDR': {
-            'extension': '.hdr',
-            'has_alpha': False,
-            'compression': 'variable',
-            'bit_depth': 'float',
-            'color_space': 'linear',
-            'supports_metadata': False,
-            'is_hdr': True
-        },
         'TGA': {
             'extension': '.tga',
             'has_alpha': True,
@@ -255,6 +237,19 @@ class ImageFormatUtils:
             pre_settings["apply_tone_mapping"] = True
             pre_settings["exposure"] = 1.0
             pre_settings["gamma"] = 2.2
+        
+        # LDR → HDR 변환 설정 (HDR 출력 형식 최적화)
+        if not ImageFormatUtils.is_hdr_format(input_format) and ImageFormatUtils.is_hdr_format(output_format):
+            # HDR 출력 시 float 형식으로 변환 보장
+            post_settings["format"] = "float"
+            
+            # HDR은 일반적으로 linear 색 공간 사용
+            post_settings["colorspace"] = "linear"
+            
+        # HDR → HDR 변환 설정
+        if ImageFormatUtils.is_hdr_format(input_format) and ImageFormatUtils.is_hdr_format(output_format):
+            # float 형식 보장
+            post_settings["format"] = "float"
         
         # 알파 채널 처리
         if ImageFormatUtils.has_alpha_support(input_format) and not ImageFormatUtils.has_alpha_support(output_format):

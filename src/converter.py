@@ -69,7 +69,7 @@ class ImageConverter:
                 return False, error_msg
             
             # 이미지 복사 및 변환
-            success, message, debug_info = self.converter.convert_image(input_image, output_image)
+            success, message, debug_info = self.converter.convert_image(input_path, output_image)
             
             if success:
                 self.logger.info(f"이미지 변환 완료: {output_path}")

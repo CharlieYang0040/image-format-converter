@@ -44,9 +44,7 @@ class EnhancedConverter(BaseConverter):
             'JPEG': '.jpg',
             'TIFF': '.tif',
             'EXR': '.exr',
-            'BMP': '.bmp',
-            'HDR': '.hdr',
-            'TGA': '.tga'  # TGA 포맷 추가
+            'TGA': '.tga'  # BMP와 HDR 포맷 제거
         }
         
         # 색 관리 모듈 초기화
@@ -97,15 +95,15 @@ class EnhancedConverter(BaseConverter):
         Returns:
             (성공 여부, 메시지, 추가 정보) 튜플
         """
-        if options is None:
-            options = {}
-            
         self.logger.info(f"고급 이미지 변환 시작: {input_path} -> {output_path}")
         input_image = None
         debug_info = {}
         
         # 시작 시간 기록
         self._start_time = time.time()
+        
+        if options is None:
+            options = {}
         
         # 초기화 단계 보고
         self._report_progress(ConversionStage.INIT, 0.0, message="변환 준비 중")
@@ -313,7 +311,7 @@ class EnhancedConverter(BaseConverter):
                                     message="색 공간 처리 중")
                 self._report_progress(ConversionStage.COLOR, 1.0, 
                                     message="색 공간 처리 완료")
-                    
+                
                 # 이미지 처리 단계
                 self._report_progress(ConversionStage.PROCESS, 0.0, 
                                     message="이미지 데이터 처리 중")
@@ -362,7 +360,7 @@ class EnhancedConverter(BaseConverter):
             # 변환 완료 메시지 
             self.logger.info(f"이미지 변환 완료: {output_path}")
             return True, f"{input_format}에서 {output_format}으로 변환 완료", debug_info
-                
+            
         except Exception as e:
             error_info = get_detailed_error_info(e)
             error_msg = f"이미지 변환 중 오류 발생: {error_info['message']}"
@@ -378,7 +376,7 @@ class EnhancedConverter(BaseConverter):
                 except Exception as e:
                     error_info = get_detailed_error_info(e)
                     self.logger.error(f"입력 이미지 리소스 정리 중 오류: {format_error_for_log(error_info)}")
-
+    
     def _apply_color_adjustments(self, pixels: np.ndarray, metadata: Dict, 
                               input_format: str, output_format: str, 
                               options: Dict) -> np.ndarray:
@@ -386,8 +384,8 @@ class EnhancedConverter(BaseConverter):
         self.logger.debug(f"이미지 색상 처리: {input_format} -> {output_format}")
         
         # 포맷 변환에 따른 특수 처리
-        is_input_hdr = input_format in ["EXR", "HDR"]
-        is_output_hdr = output_format in ["EXR", "HDR"]
+        is_input_hdr = input_format in ["EXR"]
+        is_output_hdr = output_format in ["EXR"]
         
         result = pixels.copy()
         
@@ -500,31 +498,113 @@ class EnhancedConverter(BaseConverter):
         """
         output_image = None
         try:
-            # 압축 관련 속성 설정
-            for key, value in settings.items():
-                if key == "quality" and isinstance(value, int):
-                    spec["jpeg:quality"] = value
-                elif key == "compressionlevel" and isinstance(value, int):
-                    spec["png:compressionlevel"] = value
-                elif key == "compression" and isinstance(value, str):
-                    spec["compression"] = value
-                elif key == "rle" and isinstance(value, bool):
-                    spec["targa:rle"] = int(value)
+            # 출력 디렉토리 확인 및 생성
+            output_dir = os.path.dirname(output_path)
+            if output_dir and not os.path.exists(output_dir):
+                try:
+                    os.makedirs(output_dir)
+                    self.logger.debug(f"출력 디렉토리 생성: {output_dir}")
+                except Exception as e:
+                    self.logger.error(f"출력 디렉토리 생성 실패: {str(e)}")
+                    return False
             
-            # 출력 이미지 생성
-            output_image = oiio.ImageOutput.create(output_path)
-            if not output_image:
-                self.logger.error(f"출력 이미지를 생성할 수 없습니다: {output_path}")
-                return False
-                
-            # 이미지 쓰기
-            if output_image.open(output_path, spec):
-                success = output_image.write_image(pixel_data)
-                output_image.close()
-                return success
+            # 출력 파일 확장자 확인
+            ext = os.path.splitext(output_path)[1].lower()
+            
+            # HDR 포맷인 경우 특수 처리
+            if ext == '.hdr':
+                try:
+                    self.logger.debug("HDR 파일 저장 시작")
+                    
+                    # HDR 포맷은 RGB만 지원 (알파 채널 제거)
+                    if pixel_data.shape[2] == 4:
+                        self.logger.debug("알파 채널 제거")
+                        pixel_data = pixel_data[..., :3]
+                    
+                    # 음수 값 제거 (HDR은 음수 값을 지원하지 않음)
+                    pixel_data = np.maximum(pixel_data, 0)
+                    
+                    # 임시 EXR 파일로 먼저 저장 (OpenImageIO는 EXR 저장이 더 안정적)
+                    temp_exr_path = output_path + ".temp.exr"
+                    self.logger.debug(f"임시 EXR 파일로 저장: {temp_exr_path}")
+                    
+                    # EXR 스펙 설정
+                    exr_spec = oiio.ImageSpec(spec.width, spec.height, 3, oiio.FLOAT)
+                    
+                    # EXR 파일 생성
+                    exr_out = oiio.ImageOutput.create(temp_exr_path)
+                    if not exr_out:
+                        self.logger.error("임시 EXR 파일 생성 실패")
+                        return False
+                    
+                    # EXR 저장
+                    if exr_out.open(temp_exr_path, exr_spec):
+                        success = exr_out.write_image(pixel_data)
+                        exr_out.close()
+                        
+                        if not success:
+                            self.logger.error("임시 EXR 파일 쓰기 실패")
+                            return False
+                            
+                        # OIIO를 사용하여 EXR에서 HDR로 변환
+                        try:
+                            self.logger.debug(f"EXR → HDR 변환: {temp_exr_path} → {output_path}")
+                            
+                            # EXR 파일 읽기
+                            input_buf = oiio.ImageBuf(temp_exr_path)
+                            if not input_buf.has_error():
+                                # HDR 파일로 저장
+                                output_buf = oiio.ImageBuf()
+                                output_buf.copy(input_buf)  # 데이터 복사
+                                
+                                # HDR로 저장
+                                success = output_buf.write(output_path)
+                                
+                                # 임시 파일 삭제
+                                try:
+                                    os.remove(temp_exr_path)
+                                except:
+                                    self.logger.warning(f"임시 파일 삭제 실패: {temp_exr_path}")
+                                
+                                return success
+                            else:
+                                self.logger.error(f"임시 EXR 파일 읽기 실패: {input_buf.geterror()}")
+                                return False
+                        except Exception as e:
+                            self.logger.error(f"HDR 변환 중 오류 발생: {str(e)}")
+                            return False
+                    else:
+                        self.logger.error(f"임시 EXR 파일을 열 수 없음: {exr_out.geterror()}")
+                        return False
+                except Exception as e:
+                    self.logger.error(f"HDR 파일 저장 중 오류 발생: {str(e)}")
+                    return False
             else:
-                self.logger.error(f"출력 파일을 열 수 없습니다: {output_path}")
-                return False
+                # 일반 포맷인 경우 기본 처리
+                output_image = oiio.ImageOutput.create(output_path)
+                if not output_image:
+                    self.logger.error(f"출력 이미지를 생성할 수 없습니다: {output_path}")
+                    return False
+                
+                # 압축 관련 속성 설정
+                for key, value in settings.items():
+                    if key == "quality" and isinstance(value, int):
+                        spec["jpeg:quality"] = value
+                    elif key == "compressionlevel" and isinstance(value, int):
+                        spec["png:compressionlevel"] = value
+                    elif key == "compression" and isinstance(value, str):
+                        spec["compression"] = value
+                    elif key == "rle" and isinstance(value, bool):
+                        spec["targa:rle"] = int(value)
+                    
+                # 이미지 쓰기
+                if output_image.open(output_path, spec):
+                    success = output_image.write_image(pixel_data)
+                    output_image.close()
+                    return success
+                else:
+                    self.logger.error(f"출력 파일을 열 수 없습니다: {output_path}")
+                    return False
                 
         except Exception as e:
             error_info = get_detailed_error_info(e)
@@ -585,7 +665,7 @@ class EnhancedConverter(BaseConverter):
                     bit_depth = 16
                 
                 # HDR 여부 확인
-                is_hdr = format_name in ["EXR", "HDR"] or bit_depth > 8
+                is_hdr = format_name in ["EXR"] or bit_depth > 8
                 
                 # 기본 정보
                 info = {

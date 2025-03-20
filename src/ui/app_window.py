@@ -7,7 +7,7 @@ from ..services.log_service import LogService
 from ..config.config_manager import ConfigManager
 from .widgets.file_path_entry import FilePathEntry
 from .widgets.image_info_display import ImageInfoDisplay
-from .widgets.format_options import FormatOptionsWidget
+from .widgets.format_options_widget import FormatOptionsWidget
 from .widgets.batch_progress import BatchProgressWidget
 from src.converters.batch_service import BatchService
 from tkinterdnd2 import DND_FILES, TkinterDnD
@@ -84,20 +84,49 @@ class AppWindow:
         input_frame = ttk.LabelFrame(left_panel, text="입력", padding=10)
         input_frame.pack(fill="x", pady=(0, 5))
         self.input_entry = FilePathEntry(input_frame, on_path_change=self._on_input_path_change, 
-                                         clear_command=self._on_clear_input_path)
+                                         clear_command=self._on_clear_input_path,
+                                         browse_command=self.select_input_path)
         self.input_entry.pack(fill="x")
         
         # 입력 타입 선택 (파일/폴더)
         input_type_frame = ttk.Frame(input_frame)
         input_type_frame.pack(fill="x", pady=(5, 0))
         
-        # 출력 형식 선택
-        format_frame = ttk.LabelFrame(left_panel, text="출력 형식", padding=10)
-        format_frame.pack(fill="x", pady=5)
+        # 출력 경로 선택
+        output_frame = ttk.LabelFrame(left_panel, text="출력", padding=10)
+        output_frame.pack(fill="x", pady=(0, 5))
+        self.output_entry = FilePathEntry(output_frame, on_path_change=self._on_output_path_change, 
+                                          clear_command=self._on_clear_output_path, 
+                                          on_drop=self._on_output_path_drop,
+                                          browse_command=self.select_output_path)
+        self.output_entry.pack(fill="x")
+        
+        # 변환 작업 모드 관리 (단일 파일/배치)
+        self.work_mode_var = tk.StringVar(value="single")  # 'single' 또는 'batch'
+        
+        # 진행 상태 프레임 (단일 파일용)
+        self.single_progress_container = ttk.Frame(left_panel)
+        self.single_progress_container.pack(fill="x", pady=(10, 0))
+        
+        # 상세 변환 진행 상태 위젯
+        self.conversion_progress = ConversionProgressWidget(self.single_progress_container)
+        self.conversion_progress.pack(fill="x", expand=True)
+        
+        # 작업 버튼 프레임
+        button_frame = ttk.Frame(left_panel)
+        button_frame.pack(fill="x", pady=(10, 0))
+        
+        # 출력 형식 선택 (변환 버튼 옆으로 이동)
+        format_label = ttk.Label(button_frame, text="출력 형식:")
+        format_label.pack(side="left", padx=(0, 5))
         
         self.format_var = tk.StringVar()
-        format_combo = ttk.Combobox(format_frame, textvariable=self.format_var, state="readonly")
-        format_combo.pack(fill="x")
+        format_combo = ttk.Combobox(button_frame, textvariable=self.format_var, state="readonly", width=10)
+        format_combo.pack(side="left", padx=(0, 5))
+        
+        # 변환 버튼
+        self.convert_button = ttk.Button(button_frame, text="변환 시작", command=self.convert_image)
+        self.convert_button.pack(side="right", padx=(5, 0))
         
         # 출력 파일 포맷 설정
         supported_formats = self.converter.get_supported_formats()
@@ -131,37 +160,6 @@ class AppWindow:
         
         self.format_var.trace_add("write", _on_format_change)
         
-        # 출력 경로 선택
-        output_frame = ttk.LabelFrame(left_panel, text="출력", padding=10)
-        output_frame.pack(fill="x", pady=(0, 5))
-        self.output_entry = FilePathEntry(output_frame, on_path_change=self._on_output_path_change, 
-                                          clear_command=self._on_clear_output_path, 
-                                          on_drop=self._on_output_path_drop)
-        self.output_entry.pack(fill="x")
-        
-        # 변환 옵션 프레임
-        self.format_options = FormatOptionsWidget(left_panel)
-        self.format_options.pack(fill="x", pady=(5, 0))
-        
-        # 변환 작업 모드 관리 (단일 파일/배치)
-        self.work_mode_var = tk.StringVar(value="single")  # 'single' 또는 'batch'
-        
-        # 진행 상태 프레임 (단일 파일용)
-        self.single_progress_container = ttk.Frame(left_panel)
-        self.single_progress_container.pack(fill="x", pady=(10, 0))
-        
-        # 상세 변환 진행 상태 위젯
-        self.conversion_progress = ConversionProgressWidget(self.single_progress_container)
-        self.conversion_progress.pack(fill="x", expand=True)
-        
-        # 작업 버튼 프레임
-        button_frame = ttk.Frame(left_panel)
-        button_frame.pack(fill="x", pady=(10, 0))
-        
-        # 변환 버튼
-        self.convert_button = ttk.Button(button_frame, text="변환 시작", command=self.convert_image)
-        self.convert_button.pack(side="right", padx=(5, 0))
-        
         # 배치 처리 진행 상태 위젯 (초기에는 숨김)
         self.batch_progress = BatchProgressWidget(left_panel)
         self.batch_progress.pack(fill="x", expand=True, pady=(10, 0))
@@ -179,6 +177,14 @@ class AppWindow:
         # 이미지 정보 표시
         self.info_display = ImageInfoDisplay(preview_frame)
         self.info_display.pack(fill="both", expand=True)
+        
+        # 변환 옵션 프레임
+        options_frame = ttk.LabelFrame(right_panel, text="변환 옵션", padding=10)
+        options_frame.pack(fill="x", pady=(5, 0))
+        
+        # 변환 옵션 위젯
+        self.format_options = FormatOptionsWidget(options_frame)
+        self.format_options.pack(fill="x", pady=(5, 0))
         
         # 초기 UI 상태 업데이트
         self._update_ui_state()
@@ -199,23 +205,34 @@ class AppWindow:
     def _update_ui_state(self):
         """입력 경로 변경에 따라 UI 상태를 업데이트합니다."""
         input_path = self.input_entry.get_path()
+        output_path = self.output_entry.get_path()
         
-        if not input_path:
-            # 입력 경로가 없음
+        # 입력과 출력 경로가 모두 있는지 확인
+        if not input_path or not output_path:
             self.convert_button.configure(state="disabled")
-        else:
-            # 입력 경로 유효성 확인
-            if os.path.exists(input_path):
-                self.convert_button.configure(state="normal")
-                
-                # 경로 유형에 따른 UI 모드 전환
-                is_dir = os.path.isdir(input_path)
-                if is_dir:
-                    self._switch_to_mode("batch")
-                else:
-                    self._switch_to_mode("single")
-            else:
+            return
+            
+        # 입력 경로의 유효성 확인
+        if not os.path.exists(input_path):
+            self.convert_button.configure(state="disabled")
+            return
+            
+        # 출력 경로가 디렉토리인 경우 해당 디렉토리가 있는지 확인
+        if os.path.isdir(input_path):
+            # 입력이 디렉토리인 경우, 출력은 반드시 디렉토리여야 함
+            if os.path.exists(output_path) and not os.path.isdir(output_path):
                 self.convert_button.configure(state="disabled")
+                return
+        
+        # 모든 조건을 통과하면 버튼 활성화
+        self.convert_button.configure(state="normal")
+        
+        # 경로 유형에 따른 UI 모드 전환
+        is_dir = os.path.isdir(input_path)
+        if is_dir:
+            self._switch_to_mode("batch")
+        else:
+            self._switch_to_mode("single")
         
     def _on_input_path_change(self, path: str):
         """입력 경로가 변경되었을 때 호출됩니다."""
@@ -228,6 +245,9 @@ class AppWindow:
                 # 디렉토리인 경우
                 self._switch_to_mode("batch")
                 self.config.set("last_input_directory", path)
+                
+                # 폴더 내 이미지 파일 확인하여 변환 옵션 업데이트
+                self._update_format_options_for_directory(path)
             else:
                 # 파일인 경우
                 self._switch_to_mode("single")
@@ -240,6 +260,40 @@ class AppWindow:
                 
             # 입력 경로가 변경되면 출력 경로의 덮어쓰기 경고 상태도 확인
             self._check_output_path_exists()
+            
+        # UI 상태 업데이트
+        self._update_ui_state()
+        
+    def _update_format_options_for_directory(self, directory_path: str):
+        """디렉토리 내 이미지 파일을 확인하고 변환 옵션을 업데이트합니다."""
+        self.logger.debug(f"디렉토리 변환 옵션 업데이트: {directory_path}")
+        
+        # 디렉토리 내 이미지 파일 확장자 확인
+        image_extensions = set()
+        supported_exts = set()
+        
+        # 지원 확장자 목록
+        for ext in self.converter.supported_formats.values():
+            supported_exts.add(ext.lower())
+        
+        # 디렉토리 내 파일 순회
+        for root, _, files in os.walk(directory_path):
+            for file in files:
+                ext = os.path.splitext(file)[1].lower()
+                if ext in supported_exts:
+                    image_extensions.add(ext)
+                    
+                    # 하나의 이미지 파일을 찾으면 해당 파일로 변환 옵션 업데이트
+                    file_path = os.path.join(root, file)
+                    self._update_format_options(file_path)
+                    return  # 첫 번째 발견된 이미지 파일로 옵션 설정
+                    
+        # 지원되는 이미지 파일을 못 찾은 경우
+        if not image_extensions:
+            self.logger.warning(f"디렉토리에 지원 가능한 이미지 파일이 없습니다: {directory_path}")
+            # 기본 옵션으로 설정하고 비활성화
+            self.format_options.update_for_formats(None, self.format_var.get(), {})
+            self.format_options.set_enabled(False)
             
     def _check_output_path_exists(self):
         """출력 경로의 파일 존재 여부를 확인하고 경고를 표시합니다."""
@@ -268,13 +322,17 @@ class AppWindow:
             self.config.set("last_output_file", path)
             self.config.set("last_output_directory", os.path.dirname(path))
             
+        # UI 상태 업데이트
+        self._update_ui_state()
+        
     def _on_clear_input_path(self):
         """입력 경로 초기화 시 호출됩니다."""
         self.info_display.clear()
+        self._update_ui_state()
         
     def _on_clear_output_path(self):
         """출력 경로 초기화 시 호출됩니다."""
-        pass
+        self._update_ui_state()
         
     def select_input_path(self):
         """입력 경로를 선택합니다."""
@@ -301,7 +359,7 @@ class AppWindow:
             file_path = filedialog.askopenfilename(
                 title="입력 이미지 선택",
                 initialdir=last_dir,
-                filetypes=[("이미지 파일", "*.png *.jpg *.jpeg *.tif *.tiff *.exr *.bmp *.hdr *.tga")]
+                filetypes=[("이미지 파일", "*.png *.jpg *.jpeg *.tif *.tiff *.exr *.tga")]
             )
             if file_path:
                 self.input_entry.set_path(file_path)
@@ -384,20 +442,21 @@ class AppWindow:
         
     def _update_format_options(self, input_path: str):
         """포맷 옵션을 업데이트합니다."""
-        if not input_path or not os.path.exists(input_path) or os.path.isdir(input_path):
-            return
-            
-        # 입력 포맷 결정
-        input_ext = os.path.splitext(input_path)[1].lower()
         input_format = None
-        for format_name, ext in self.converter.supported_formats.items():
-            if ext.lower() == input_ext:
-                input_format = format_name
-                break
-                
-        # 출력 포맷
         output_format = self.format_var.get()
         
+        # 입력 파일이 있고 디렉토리가 아닌 경우 포맷 결정
+        if input_path and os.path.exists(input_path) and not os.path.isdir(input_path):
+            # 입력 포맷 결정
+            input_ext = os.path.splitext(input_path)[1].lower()
+            
+            # 확장자로 포맷 유추
+            for format_name, ext in self.converter.supported_formats.items():
+                if ext.lower() == input_ext:
+                    input_format = format_name
+                    break
+        
+        # 변환 옵션 위젯 업데이트
         if input_format and output_format:
             # 저장된 옵션 불러오기
             saved_options = self.config.get_format_options(input_format, output_format)
@@ -405,11 +464,12 @@ class AppWindow:
             # 포맷 옵션 위젯 업데이트
             self.format_options.update_for_formats(input_format, output_format, saved_options)
             
-            # 옵션이 있으면 표시, 없으면 숨김
-            if self.format_options.options:
-                self.format_options.pack(fill="x", pady=(5, 0))
-            else:
-                self.format_options.pack_forget()
+            # 옵션 활성화
+            self.format_options.set_enabled(True)
+        else:
+            # 입력 또는 출력 포맷이 결정되지 않은 경우, 기본 값으로 설정하고 비활성화
+            self.format_options.update_for_formats(None, output_format, {})
+            self.format_options.set_enabled(False)
         
     def convert_image(self):
         """이미지 변환을 실행합니다."""
