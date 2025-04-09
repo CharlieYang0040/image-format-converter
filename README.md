@@ -2,6 +2,8 @@
 
 Python, Tkinter, OpenImageIO 라이브러리를 사용하여 개발된 이미지 포맷 변환 애플리케이션입니다. 사용자 친화적인 인터페이스를 통해 다양한 이미지 포맷 간의 변환을 쉽고 빠르게 수행할 수 있습니다.
 
+![이미지 설명](resources/screenshot.png)
+
 ## 주요 특징
 
 *   **다양한 포맷 지원:** PNG, JPEG, TIFF, EXR, TGA 등 주요 이미지 포맷 간의 상호 변환을 지원합니다.
@@ -27,7 +29,7 @@ Python, Tkinter, OpenImageIO 라이브러리를 사용하여 개발된 이미지
 
 **방법 1: 실행 파일 사용 (권장)**
 
-1.  [GitHub 릴리스 페이지](https://github.com/yourusername/image-format-converter/releases)로 이동합니다.
+1.  [GitHub 릴리스 페이지](https://github.com/CharlieYang0040/image-format-converter/releases)로 이동합니다.
 2.  최신 릴리스의 `Assets` 섹션에서 `.exe` 실행 파일을 다운로드합니다.
 3.  다운로드한 실행 파일을 원하는 위치에 놓고 더블클릭하여 실행합니다.
 
@@ -35,7 +37,7 @@ Python, Tkinter, OpenImageIO 라이브러리를 사용하여 개발된 이미지
 
 1.  저장소 복제:
     ```bash
-    git clone https://github.com/yourusername/image-format-converter.git
+    git clone https://github.com/CharlieYang0040/image-format-converter.git
     ```
 2.  프로젝트 디렉토리로 이동:
     ```bash
