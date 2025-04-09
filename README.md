@@ -1,45 +1,64 @@
-# Image Format Converter
+# 이미지 포맷 변환기
 
-This project is an image format converter application built using Python and the OpenImageIO library. It allows users to convert images between various formats easily.
+Python, Tkinter, OpenImageIO 라이브러리를 사용하여 개발된 이미지 포맷 변환 애플리케이션입니다. 사용자 친화적인 인터페이스를 통해 다양한 이미지 포맷 간의 변환을 쉽고 빠르게 수행할 수 있습니다.
 
-## Features
+## 주요 특징
 
-- Convert images from one format to another (e.g., JPEG, PNG, TIFF).
-- User-friendly interface for selecting files and formats.
-- Support for batch processing of images.
+*   **다양한 포맷 지원:** PNG, JPEG, TIFF, EXR, TGA 등 주요 이미지 포맷 간의 상호 변환을 지원합니다.
+*   **직관적인 GUI:** Tkinter를 사용하여 사용하기 쉬운 그래픽 인터페이스를 제공합니다.
+*   **드래그 앤 드롭:** 입력 및 출력 경로 지정을 위해 파일 및 폴더를 편리하게 드래그 앤 드롭할 수 있습니다.
+*   **파일/폴더 선택:** '찾아보기' 버튼을 통해 파일 탐색기에서 직접 파일이나 폴더를 선택할 수 있습니다.
+*   **배치 처리:** 폴더 전체(하위 폴더 포함)의 이미지들을 한 번에 변환하는 강력한 배치 처리 기능을 지원합니다.
+*   **실시간 진행 상태:** 단일 파일 및 배치 변환 작업의 진행 상태를 상세하게(단계별 진행률, 전체 진행률, 처리 파일 수 등) 실시간으로 보여줍니다.
+*   **이미지 정보 표시:** 선택된 입력 이미지의 크기, 채널 수, 파일 크기, 색 프로파일 등의 정보를 표시합니다.
+*   **고급 변환 옵션:**
+    *   **색 관리:** 입력 및 출력 색 프로파일을 지정하여 정확한 색 변환을 수행할 수 있습니다. (색 관리 사용 여부 선택 가능)
+    *   **HDR → SDR 변환:** EXR 등 HDR 이미지를 SDR 포맷으로 변환 시 톤 매핑 방식(Reinhard, Filmic, ACES), 노출, 감마 값을 조절할 수 있습니다.
+    *   **색상 조정:** 밝기, 대비, 채도를 조절하여 이미지의 전체적인 색감을 변경할 수 있습니다.
+    *   **옵션 자동 관리:** 입력/출력 포맷 조합에 따라 필요한 옵션만 자동으로 표시하고, 적용할 수 없는 경우 비활성화합니다.
+*   **안전 기능:** 출력 파일이 이미 존재할 경우 덮어쓰기 전에 사용자에게 확인 메시지를 표시합니다.
+*   **설정 저장:** 마지막으로 사용한 입출력 폴더 경로와 포맷별 변환 옵션을 저장하여 다음 실행 시 자동으로 불러옵니다.
 
-## Installation
+## 지원 포맷
 
-To get started with the project, follow these steps:
+*   **입력/출력:** PNG, JPEG, TIFF, EXR, TGA
 
-1. Clone the repository:
-   ```
-   git clone https://github.com/yourusername/image-format-converter.git
-   ```
+## 설치
 
-2. Navigate to the project directory:
-   ```
-   cd image-format-converter
-   ```
+**방법 1: 실행 파일 사용 (권장)**
 
-3. Install the required dependencies:
-   ```
-   pip install -r requirements.txt
-   ```
+1.  [GitHub 릴리스 페이지](https://github.com/yourusername/image-format-converter/releases)로 이동합니다.
+2.  최신 릴리스의 `Assets` 섹션에서 `.exe` 실행 파일을 다운로드합니다.
+3.  다운로드한 실행 파일을 원하는 위치에 놓고 더블클릭하여 실행합니다.
 
-## Usage
+**방법 2: 소스 코드에서 직접 실행**
 
-To run the application, execute the following command:
-```
-python src/main.py
-```
+1.  저장소 복제:
+    ```bash
+    git clone https://github.com/yourusername/image-format-converter.git
+    ```
+2.  프로젝트 디렉토리로 이동:
+    ```bash
+    cd image-format-converter
+    ```
+3.  `IMAGEIO_CONVERTER.bat` 파일 실행:
+    *   탐색기에서 `IMAGEIO_CONVERTER.bat` 파일을 더블클릭합니다.
+    *   스크립트가 자동으로 가상 환경을 생성하고 필요한 라이브러리를 설치한 후 애플리케이션을 실행합니다.
+    *   *참고:* 처음 실행 시 가상 환경 생성 및 패키지 설치로 인해 시간이 다소 소요될 수 있습니다.
+    *   *참고:* Python이 설치되어 있지 않은 경우, 스크립트가 Python 설치를 안내합니다.
+    *   *참고:* OpenImageIO 등 일부 라이브러리 설치에 문제가 발생하면 스크립트가 멈출 수 있습니다. 이 경우 Python 환경과 라이브러리 호환성을 확인해주세요.
 
-This will launch the application window where you can select images and specify the desired output format.
+## 사용법
 
-## Contributing
+*   **실행 파일 사용 시:** 다운로드한 `.exe` 파일을 더블클릭하여 실행합니다.
+*   **소스 코드 사용 시:** 프로젝트 폴더 내의 `IMAGEIO_CONVERTER.bat` 파일을 더블클릭하여 실행합니다.
 
-Contributions are welcome! If you have suggestions for improvements or new features, please open an issue or submit a pull request.
+애플리케이션 창이 나타나면 변환할 이미지 파일 또는 폴더를 선택(드래그 앤 드롭 또는 찾아보기)하고, 원하는 출력 포맷 및 옵션을 설정한 후 '변환 시작' 버튼을 클릭하세요.
 
-## License
+## 기여
 
-This project is licensed under the MIT License. See the LICENSE file for more details.
+기여를 환영합니다! 개선 사항이나 새로운 기능에 대한 제안이 있다면 이슈를 열거나 풀 리퀘스트를 제출해주세요.
+
+## 라이선스
+
+이 프로젝트는 MIT 라이선스를 따릅니다. 자세한 내용은 `LICENSE` 파일을 참조하세요.
